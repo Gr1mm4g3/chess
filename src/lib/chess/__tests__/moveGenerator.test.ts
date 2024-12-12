@@ -51,6 +51,57 @@ describe('MoveGenerator', () => {
       expect(moves.some((m) => m.to.file === 3 && m.to.rank === 4 && m.capturedPiece)).toBeTruthy(); // d5 capture
       expect(moves.some((m) => m.to.file === 5 && m.to.rank === 4 && m.capturedPiece)).toBeTruthy(); // f5 capture
     });
+
+    it('should generate pawn promotion moves', () => {
+      // Place a white pawn one step away from promotion
+      const position: Position = { rank: 6, file: 4 }; // e7
+      gameState.board = Array(8)
+        .fill(null)
+        .map(() => Array(8).fill(null));
+      gameState.board[6][4] = { type: PieceType.PAWN, color: PieceColor.WHITE, hasMoved: true };
+
+      const moves = MoveGenerator.generateMoves(gameState, position);
+
+      // Should have 4 promotion moves (Queen, Rook, Bishop, Knight)
+      expect(moves).toHaveLength(4);
+      expect(moves.every((m) => m.isPromotion)).toBeTruthy();
+      expect(moves.some((m) => m.promotionPiece === PieceType.QUEEN)).toBeTruthy();
+      expect(moves.some((m) => m.promotionPiece === PieceType.ROOK)).toBeTruthy();
+      expect(moves.some((m) => m.promotionPiece === PieceType.BISHOP)).toBeTruthy();
+      expect(moves.some((m) => m.promotionPiece === PieceType.KNIGHT)).toBeTruthy();
+    });
+
+    it('should generate en passant moves', () => {
+      // Set up an en passant position
+      gameState.board = Array(8)
+        .fill(null)
+        .map(() => Array(8).fill(null));
+      const whitePawn = { type: PieceType.PAWN, color: PieceColor.WHITE, hasMoved: true };
+      const blackPawn = { type: PieceType.PAWN, color: PieceColor.BLACK, hasMoved: true };
+
+      // Place white pawn at e5
+      gameState.board[4][4] = whitePawn;
+      // Place black pawn that just moved from f7 to f5
+      gameState.board[4][5] = blackPawn;
+
+      // Add the last move to history
+      gameState.moveHistory = [
+        {
+          from: { rank: 6, file: 5 }, // f7
+          to: { rank: 4, file: 5 }, // f5
+          piece: blackPawn,
+        },
+      ];
+
+      const position: Position = { rank: 4, file: 4 }; // e5
+      const moves = MoveGenerator.generateMoves(gameState, position);
+
+      // Should find the en passant move
+      const enPassantMove = moves.find((m) => m.isEnPassant);
+      expect(enPassantMove).toBeTruthy();
+      expect(enPassantMove?.to).toEqual({ rank: 5, file: 5 }); // e6
+      expect(enPassantMove?.capturedPiece).toEqual(blackPawn);
+    });
   });
 
   describe('generateMoves for Knights', () => {
@@ -230,6 +281,93 @@ describe('MoveGenerator', () => {
           moves.some((m) => m.to.rank === expected.rank && m.to.file === expected.file)
         ).toBeTruthy();
       });
+    });
+
+    it('should allow kingside castling when conditions are met', () => {
+      // Set up a position where white can castle kingside
+      gameState.board = Array(8)
+        .fill(null)
+        .map(() => Array(8).fill(null));
+      const whiteKing = { type: PieceType.KING, color: PieceColor.WHITE, hasMoved: false };
+      const whiteRook = { type: PieceType.ROOK, color: PieceColor.WHITE, hasMoved: false };
+
+      // Place pieces for kingside castle
+      gameState.board[0][4] = whiteKing; // e1
+      gameState.board[0][7] = whiteRook; // h1
+
+      const position: Position = { rank: 0, file: 4 }; // e1
+      const moves = MoveGenerator.generateMoves(gameState, position);
+
+      // Find the castling move
+      const castlingMove = moves.find((m) => m.isCastling);
+      expect(castlingMove).toBeTruthy();
+      expect(castlingMove?.to).toEqual({ rank: 0, file: 6 }); // g1
+    });
+
+    it('should allow queenside castling when conditions are met', () => {
+      // Set up a position where white can castle queenside
+      gameState.board = Array(8)
+        .fill(null)
+        .map(() => Array(8).fill(null));
+      const whiteKing = { type: PieceType.KING, color: PieceColor.WHITE, hasMoved: false };
+      const whiteRook = { type: PieceType.ROOK, color: PieceColor.WHITE, hasMoved: false };
+
+      // Place pieces for queenside castle
+      gameState.board[0][4] = whiteKing; // e1
+      gameState.board[0][0] = whiteRook; // a1
+
+      const position: Position = { rank: 0, file: 4 }; // e1
+      const moves = MoveGenerator.generateMoves(gameState, position);
+
+      // Find the castling move
+      const castlingMove = moves.find((m) => m.isCastling);
+      expect(castlingMove).toBeTruthy();
+      expect(castlingMove?.to).toEqual({ rank: 0, file: 2 }); // c1
+    });
+
+    it('should not allow castling through check', () => {
+      // Set up a position where white could castle but the squares are attacked
+      gameState.board = Array(8)
+        .fill(null)
+        .map(() => Array(8).fill(null));
+      const whiteKing = { type: PieceType.KING, color: PieceColor.WHITE, hasMoved: false };
+      const whiteRook = { type: PieceType.ROOK, color: PieceColor.WHITE, hasMoved: false };
+      const blackRook = { type: PieceType.ROOK, color: PieceColor.BLACK, hasMoved: true };
+
+      // Place pieces for kingside castle
+      gameState.board[0][4] = whiteKing; // e1
+      gameState.board[0][7] = whiteRook; // h1
+      // Place black rook attacking f1
+      gameState.board[7][5] = blackRook; // f8
+
+      const position: Position = { rank: 0, file: 4 }; // e1
+      const moves = MoveGenerator.generateMoves(gameState, position);
+
+      // Should not find any castling moves
+      expect(moves.some((m) => m.isCastling)).toBeFalsy();
+    });
+
+    it('should not allow castling when in check', () => {
+      // Set up a position where white is in check
+      gameState.board = Array(8)
+        .fill(null)
+        .map(() => Array(8).fill(null));
+      const whiteKing = { type: PieceType.KING, color: PieceColor.WHITE, hasMoved: false };
+      const whiteRook = { type: PieceType.ROOK, color: PieceColor.WHITE, hasMoved: false };
+      const blackRook = { type: PieceType.ROOK, color: PieceColor.BLACK, hasMoved: true };
+
+      // Place pieces
+      gameState.board[0][4] = whiteKing; // e1
+      gameState.board[0][7] = whiteRook; // h1
+      gameState.board[7][4] = blackRook; // e8 (checking white king)
+
+      gameState.isCheck = true;
+
+      const position: Position = { rank: 0, file: 4 }; // e1
+      const moves = MoveGenerator.generateMoves(gameState, position);
+
+      // Should not find any castling moves
+      expect(moves.some((m) => m.isCastling)).toBeFalsy();
     });
   });
 });
