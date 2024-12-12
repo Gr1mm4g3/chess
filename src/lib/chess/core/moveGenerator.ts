@@ -18,6 +18,8 @@ export class MoveGenerator {
    */
   public static generateMoves(gameState: GameState, position: Position): Move[] {
     const piece = gameState.board[position.rank][position.file];
+    console.log('Generating moves for piece:', piece, 'at position:', position);
+
     if (!piece) return [];
 
     let moves: Move[] = [];
@@ -43,8 +45,12 @@ export class MoveGenerator {
         break;
     }
 
+    console.log('Generated moves before check filter:', moves);
     // Filter out moves that would leave the king in check
-    return moves.filter((move) => !this.wouldResultInCheck(gameState, move));
+    const validMoves = moves.filter((move) => !this.wouldResultInCheck(gameState, move));
+    console.log('Valid moves after check filter:', validMoves);
+
+    return validMoves;
   }
 
   /**

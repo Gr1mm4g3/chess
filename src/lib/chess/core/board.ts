@@ -41,7 +41,7 @@ export function createInitialBoard(): (Piece | null)[][] {
  * @returns boolean indicating if the position is valid
  */
 export function isValidPosition(position: Position): boolean {
-  return position.file >= 0 && position.file < 8 && position.rank >= 0 && position.rank < 8;
+  return position.rank >= 0 && position.rank < 8 && position.file >= 0 && position.file < 8;
 }
 
 /**

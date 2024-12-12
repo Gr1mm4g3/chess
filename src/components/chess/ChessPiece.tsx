@@ -24,12 +24,13 @@ export function ChessPiece({ piece, size = 50 }: ChessPieceProps) {
   const imagePath = `/pieces/${pieceColor}_${mappedType}.svg`;
 
   return (
-    <div className="relative" style={{ width: size, height: size }}>
+    <div className="pointer-events-none relative" style={{ width: size, height: size }}>
       <Image
         src={imagePath}
         alt={`${piece.color} ${piece.type}`}
         fill
-        className="object-contain"
+        priority
+        className="pointer-events-none object-contain"
         draggable={false}
       />
     </div>
