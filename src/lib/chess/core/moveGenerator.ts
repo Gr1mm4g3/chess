@@ -130,13 +130,11 @@ export class MoveGenerator {
     return false;
   }
 
-  // TODO: Implement remaining piece move generators
   private static generateKnightMoves(gameState: GameState, position: Position): Move[] {
     const piece = gameState.board[position.rank][position.file];
     if (!piece || piece.type !== PieceType.KNIGHT) return [];
 
     // Knight move offsets
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const offsets = [
       [-2, -1],
       [-2, 1],
@@ -148,7 +146,28 @@ export class MoveGenerator {
       [2, 1],
     ];
 
-    return []; // TODO: Implement knight moves
+    const moves: Move[] = [];
+
+    // Check each possible knight move
+    for (const [rankOffset, fileOffset] of offsets) {
+      const targetRank = position.rank + rankOffset;
+      const targetFile = position.file + fileOffset;
+
+      // Check if the target position is on the board
+      if (!isValidPosition({ rank: targetRank, file: targetFile })) continue;
+
+      // Get the piece at the target position
+      const targetPiece = gameState.board[targetRank][targetFile];
+
+      // Can move if square is empty or occupied by opponent's piece
+      if (!targetPiece || targetPiece.color !== piece.color) {
+        moves.push(
+          this.createMove(position, { rank: targetRank, file: targetFile }, piece, targetPiece)
+        );
+      }
+    }
+
+    return moves;
   }
 
   private static generateBishopMoves(gameState: GameState, position: Position): Move[] {
@@ -156,7 +175,6 @@ export class MoveGenerator {
     if (!piece || piece.type !== PieceType.BISHOP) return [];
 
     // Bishop moves diagonally
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const directions = [
       [-1, -1],
       [-1, 1],
@@ -164,7 +182,7 @@ export class MoveGenerator {
       [1, 1],
     ];
 
-    return []; // TODO: Implement bishop moves
+    return this.generateSlidingMoves(gameState, position, piece, directions);
   }
 
   private static generateRookMoves(gameState: GameState, position: Position): Move[] {
@@ -172,7 +190,6 @@ export class MoveGenerator {
     if (!piece || piece.type !== PieceType.ROOK) return [];
 
     // Rook moves horizontally and vertically
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const directions = [
       [-1, 0],
       [1, 0],
@@ -180,7 +197,7 @@ export class MoveGenerator {
       [0, 1],
     ];
 
-    return []; // TODO: Implement rook moves
+    return this.generateSlidingMoves(gameState, position, piece, directions);
   }
 
   private static generateQueenMoves(gameState: GameState, position: Position): Move[] {
@@ -188,7 +205,6 @@ export class MoveGenerator {
     if (!piece || piece.type !== PieceType.QUEEN) return [];
 
     // Queen moves in all directions
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const directions = [
       [-1, -1],
       [-1, 0],
@@ -200,7 +216,7 @@ export class MoveGenerator {
       [1, 1],
     ];
 
-    return []; // TODO: Implement queen moves
+    return this.generateSlidingMoves(gameState, position, piece, directions);
   }
 
   private static generateKingMoves(gameState: GameState, position: Position): Move[] {
@@ -208,7 +224,6 @@ export class MoveGenerator {
     if (!piece || piece.type !== PieceType.KING) return [];
 
     // King moves one square in any direction
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const directions = [
       [-1, -1],
       [-1, 0],
@@ -220,6 +235,69 @@ export class MoveGenerator {
       [1, 1],
     ];
 
-    return []; // TODO: Implement king moves
+    const moves: Move[] = [];
+
+    // Normal king moves
+    for (const [rankOffset, fileOffset] of directions) {
+      const targetRank = position.rank + rankOffset;
+      const targetFile = position.file + fileOffset;
+
+      if (!isValidPosition({ rank: targetRank, file: targetFile })) continue;
+
+      const targetPiece = gameState.board[targetRank][targetFile];
+      if (!targetPiece || targetPiece.color !== piece.color) {
+        // Don't allow moves into check (this will be handled by wouldResultInCheck)
+        moves.push(
+          this.createMove(position, { rank: targetRank, file: targetFile }, piece, targetPiece)
+        );
+      }
+    }
+
+    // TODO: Add castling moves when implementing special moves
+
+    return moves;
+  }
+
+  /**
+   * Helper method to generate moves for sliding pieces (Bishop, Rook, Queen)
+   */
+  private static generateSlidingMoves(
+    gameState: GameState,
+    position: Position,
+    piece: Piece,
+    directions: [number, number][]
+  ): Move[] {
+    const moves: Move[] = [];
+
+    // Check each direction
+    for (const [rankDirection, fileDirection] of directions) {
+      let targetRank = position.rank + rankDirection;
+      let targetFile = position.file + fileDirection;
+
+      // Continue in this direction until we hit a piece or the board edge
+      while (isValidPosition({ rank: targetRank, file: targetFile })) {
+        const targetPiece = gameState.board[targetRank][targetFile];
+
+        if (!targetPiece) {
+          // Empty square - add move and continue in this direction
+          moves.push(this.createMove(position, { rank: targetRank, file: targetFile }, piece));
+        } else {
+          // Hit a piece
+          if (targetPiece.color !== piece.color) {
+            // Can capture opponent's piece
+            moves.push(
+              this.createMove(position, { rank: targetRank, file: targetFile }, piece, targetPiece)
+            );
+          }
+          // Stop looking in this direction
+          break;
+        }
+
+        targetRank += rankDirection;
+        targetFile += fileDirection;
+      }
+    }
+
+    return moves;
   }
 }
